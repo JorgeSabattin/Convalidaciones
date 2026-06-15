@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta de Convalidaciones — Precedentes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F5F7;
+    --surface:#FFFFFF;
+    --ink:#16202E;
+    --ink-soft:#54627A;
+    --line:#E3E7EE;
+    --navy:#1F3A5F;
+    --navy-deep:#152A47;
+    --accent:#C8472B;
+    --ok:#11704A;
+    --ok-bg:#E7F4EC;
+    --ok-line:#BFE3CE;
+    --no:#A52218;
+    --no-bg:#FBEBE9;
+    --no-line:#F2C8C2;
+    --chip:#EEF1F6;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(21,42,71,.06), 0 8px 24px rgba(21,42,71,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg);color:var(--ink);
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+
+  /* Header */
+  header{
+    background:linear-gradient(180deg,var(--navy) 0%,var(--navy-deep) 100%);
+    color:#fff;padding:30px 0 26px;
+  }
+  header .wrap{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .brand .eyebrow{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:#9DB3D1;font-weight:600;margin:0 0 6px;
+  }
+  .brand h1{
+    font-family:'Fraunces',Georgia,serif;font-weight:600;
+    font-size:27px;line-height:1.1;margin:0;letter-spacing:-.01em;
+  }
+  .brand p{margin:8px 0 0;color:#C6D3E6;font-size:13.5px;max-width:46ch}
+  .loadbox{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .file-btn{
+    display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+    background:#fff;color:var(--navy-deep);font-weight:600;font-size:14px;
+    padding:11px 16px;border-radius:10px;border:none;transition:transform .12s ease, box-shadow .12s ease;
+    box-shadow:0 4px 14px rgba(0,0,0,.18);
+  }
+  .file-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.24)}
+  .file-btn:active{transform:translateY(0)}
+  .file-status{font-size:12px;color:#AFC0DA;text-align:right;min-height:16px}
+  input[type=file]{display:none}
+
+  /* Search bar */
+  .search-shell{margin-top:-22px}
+  .search-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px;
+  }
+  .search-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .search-input{
+    flex:1 1 320px;display:flex;align-items:center;gap:10px;
+    background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:0 12px;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .search-input:focus-within{border-color:var(--navy);box-shadow:0 0 0 3px rgba(31,58,95,.12)}
+  .search-input svg{flex:none;color:var(--ink-soft)}
+  .search-input input{
+    border:none;outline:none;width:100%;font-size:15.5px;color:var(--ink);
+    padding:12px 0;font-family:inherit;background:transparent;
+  }
+  .seg{display:inline-flex;background:var(--chip);border-radius:9px;padding:3px}
+  .seg button{
+    border:none;background:transparent;cursor:pointer;font-family:inherit;
+    font-size:12.5px;font-weight:600;color:var(--ink-soft);
+    padding:7px 11px;border-radius:7px;transition:all .12s ease;white-space:nowrap;
+  }
+  .seg button.on{background:#fff;color:var(--navy-deep);box-shadow:0 1px 3px rgba(21,42,71,.12)}
+  .seg button:disabled{opacity:.5;cursor:default}
+
+  /* Verdict banner */
+  .verdict{
+    margin-top:14px;border-radius:12px;padding:14px 16px;display:none;
+    border:1px solid var(--line);background:#fff;
+    align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  .verdict.show{display:flex}
+  .verdict .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .verdict.ok{background:var(--ok-bg);border-color:var(--ok-line)}
+  .verdict.ok .dot{background:var(--ok)}
+  .verdict.no{background:var(--no-bg);border-color:var(--no-line)}
+  .verdict.no .dot{background:var(--no)}
+  .verdict.mix{background:#FFF6E8;border-color:#F1DDB3}
+  .verdict.mix .dot{background:#C98A14}
+  .verdict .v-main{font-weight:600;font-size:15px}
+  .verdict .v-sub{font-size:13px;color:var(--ink-soft)}
+  .verdict .counts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .count-pill{font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+  .count-pill.ok{color:var(--ok);border-color:var(--ok-line)}
+  .count-pill.no{color:var(--no);border-color:var(--no-line)}
+
+  /* Results */
+  main{padding:22px 0 60px}
+  .results{display:flex;flex-direction:column;gap:12px}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px 18px;
+  }
+  .card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .origin-name{font-weight:600;font-size:16px;letter-spacing:-.01em}
+  .origin-meta{font-size:13px;color:var(--ink-soft);margin-top:3px}
+  .badge{
+    flex:none;font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:6px 11px;border-radius:999px;
+  }
+  .badge.ok{background:var(--ok-bg);color:var(--ok)}
+  .badge.no{background:var(--no-bg);color:var(--no)}
+  .flow{
+    display:flex;align-items:center;gap:12px;margin-top:13px;padding-top:13px;
+    border-top:1px dashed var(--line);flex-wrap:wrap;
+  }
+  .flow .arrow{color:var(--navy);flex:none}
+  .unab{font-size:14px}
+  .unab .lab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+  .unab .val{font-weight:600;color:var(--navy-deep)}
+  .unab .val .code{color:var(--accent);font-weight:700}
+  .meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .tag{font-size:12px;color:var(--ink-soft);background:var(--chip);padding:5px 10px;border-radius:8px}
+  .tag b{color:var(--ink);font-weight:600}
+  .tag.cong-alta{background:#E7F4EC;color:var(--ok)}
+  .tag.cong-media{background:#FFF6E8;color:#9A6A0E}
+  .tag.cong-baja{background:#FBEBE9;color:var(--no)}
+  .obs{
+    margin-top:12px;font-size:13px;color:var(--ink-soft);
+    background:#FAFBFC;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+  }
+  .obs b{color:var(--ink);font-weight:600}
+
+  /* Empty / states */
+  .state{
+    text-align:center;padding:54px 20px;color:var(--ink-soft);
+    background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);
+  }
+  .state .ico{font-size:30px;margin-bottom:8px;opacity:.7}
+  .state h3{margin:0 0 6px;color:var(--ink);font-weight:600;font-size:17px}
+  .state p{margin:0 auto;font-size:14px;max-width:42ch}
+  .stat-strip{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  .stat-strip .s{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-width:96px}
+  .stat-strip .s .n{font-size:20px;font-weight:700;color:var(--navy-deep);font-family:'Fraunces',serif}
+  .stat-strip .s .l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin-top:2px}
+  mark{background:#FCE9A8;color:inherit;padding:0 1px;border-radius:2px}
+  footer{text-align:center;color:var(--ink-soft);font-size:12px;padding:0 0 30px}
+
+  @media (max-width:560px){
+    .brand h1{font-size:23px}
+    header .wrap{flex-direction:column}
+    .loadbox{align-items:flex-start}
+    .verdict .counts{margin-left:0;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <p class="eyebrow">Facultad de Ingeniería · UNAB</p>
+      <h1>Consulta de convalidaciones</h1>
+      <p>Busca un curso de otra universidad y revisa si ya se convalidó antes, con qué resultado y contra qué asignatura UNAB.</p>
+    </div>
+    <div class="loadbox">
+      <label class="file-btn" for="file">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Cargar Excel
+      </label>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv">
+      <div class="file-status" id="fileStatus">Ningún archivo cargado</div>
+    </div>
+  </div>
+</header>
+
+<div class="search-shell">
+  <div class="wrap">
+    <div class="search-card">
+      <div class="search-row">
+        <div class="search-input">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="q" placeholder="Código de la asignatura de origen…" disabled autocomplete="off">
+        </div>
+        <div class="seg" id="filter">
+          <button data-f="all" class="on" disabled>Todas</button>
+          <button data-f="ok" disabled>Aprobadas</button>
+          <button data-f="no" disabled>Rechazadas</button>
+        </div>
+      </div>
+      <div class="verdict" id="verdict">
+        <span class="dot"></span>
+        <div>
+          <div class="v-main" id="vMain"></div>
+          <div class="v-sub" id="vSub"></div>
+        </div>
+        <div class="counts" id="vCounts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <div id="content"></div>
+  </div>
+</main>
+
+<footer>Los datos se procesan en tu navegador. Nada se sube a internet.</footer>
+
+<script>
+const norm = s => (s==null?'':String(s)).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+let ROWS = [], COLS = {}, statusFilter = 'all';
+
+const $ = id => document.getElementById(id);
+
+function findCol(headers, test){
+  for(const h of headers){ if(test(norm(h), h)) return h; }
+  return null;
+}
+
+function mapColumns(headers){
+  const has = (n, kw) => kw.every(k => n.includes(k));
+  return {
+    contacto:   findCol(headers, n => n==='contacto' || has(n,['contacto'])),
+    rut:        findCol(headers, n => n==='rut'),
+    caso:       findCol(headers, n => has(n,['numero','caso'])) || findCol(headers, n => n==='caso'),
+    uniOrigen:  findCol(headers, n => has(n,['universidad','origen'])),
+    carrOrigen: findCol(headers, n => has(n,['carrera','origen'])),
+    codOrigen:  findCol(headers, n => n==='codigo_origen_norm') || findCol(headers, n => has(n,['codigo','materia']) && !n.includes('unab')),
+    asigOrigen: findCol(headers, n => has(n,['nombre','asignatura']) && !n.includes('unab')),
+    periodo:    findCol(headers, n => has(n,['ano','semestre']) || n.includes('semestre')),
+    notaOrigen: findCol(headers, n => n==='nota'),
+    carrUnab:   findCol(headers, n => has(n,['carrera','unab'])),
+    codUnab:    findCol(headers, n => has(n,['codigo','materia','unab'])),
+    asigUnab:   findCol(headers, n => has(n,['nombre','asignatura','unab'])),
+    creditos:   findCol(headers, n => n.includes('credito')),
+    notaUnab:   findCol(headers, n => has(n,['nota','unab'])),
+    estado:     findCol(headers, n => n==='razon_norm') || findCol(headers, n => has(n,['razon','estado'])),
+    congru:     findCol(headers, n => has(n,['analisis','congruencia'])),
+    tipoCong:   findCol(headers, n => has(n,['tipo','congruencia'])),
+    obs:        findCol(headers, n => n.includes('observacion')),
+  };
+}
+
+function val(row, key){ const c = COLS[key]; return c ? (row[c]==null?'':String(row[c]).trim()) : ''; }
+function isApproved(row){ return norm(val(row,'estado')).includes('aprob'); }
+
+function loadWorkbook(data){
+  const wb = XLSX.read(data, {type:'array'});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const json = XLSX.utils.sheet_to_json(ws, {defval:''});
+  ROWS = json.filter(r => Object.values(r).some(v => String(v).trim()!==''));
+  COLS = mapColumns(Object.keys(ROWS[0]||{}));
+  enableUI();
+  render();
+}
+
+function enableUI(){
+  $('q').disabled = false;
+  $('q').focus();
+  document.querySelectorAll('#filter button').forEach(b => b.disabled = false);
+}
+
+function searchString(row){
+  return norm(val(row,'codOrigen'));
+}
+
+function currentResults(){
+  const q = norm($('q').value);
+  let res = ROWS;
+  if(q){
+    const toks = q.split(/\s+/).filter(Boolean);
+    res = res.filter(r => { const s = searchString(r); return toks.every(t => s.includes(t)); });
+  }
+  if(statusFilter==='ok') res = res.filter(isApproved);
+  else if(statusFilter==='no') res = res.filter(r => !isApproved(r));
+  return {q, res};
+}
+
+function highlight(text, q){
+  if(!q) return escapeHtml(text);
+  const toks = q.split(/\s+/).filter(Boolean);
+  let out = escapeHtml(text);
+  toks.forEach(t => {
+    if(!t) return;
+    const re = new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+    // match against accent-insensitive: simple approach on plain text
+    out = out.replace(re, '<mark>$1</mark>');
+  });
+  return out;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function congClass(c){const n=norm(c); if(n.includes('alta'))return 'cong-alta'; if(n.includes('media'))return 'cong-media'; if(n.includes('baja'))return 'cong-baja'; return '';}
+
+function render(){
+  if(!ROWS.length){ return; }
+  const {q, res} = currentResults();
+  const content = $('content');
+  const verdict = $('verdict');
+
+  // No query yet: show overview
+  if(!q){
+    verdict.className = 'verdict';
+    const total = ROWS.length;
+    const ok = ROWS.filter(isApproved).length;
+    const unis = new Set(ROWS.map(r=>val(r,'uniOrigen')).filter(Boolean)).size;
+    content.innerHTML = `
+      <div class="state">
+        <div class="ico">🔎</div>
+        <h3>Escribe un código de asignatura para buscar precedentes</h3>
+        <p>Busca por el código del curso que trae el postulante desde su universidad de origen. La búsqueda es instantánea.</p>
+        <div class="stat-strip">
+          <div class="s"><div class="n">${total}</div><div class="l">Registros</div></div>
+          <div class="s"><div class="n">${ok}</div><div class="l">Aprobadas</div></div>
+          <div class="s"><div class="n">${total-ok}</div><div class="l">Rechazadas</div></div>
+          <div class="s"><div class="n">${unis}</div><div class="l">Universidades</div></div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Verdict banner (based on full matches ignoring status filter, to give the true picture)
+  const toks = q.split(/\s+/).filter(Boolean);
+  const allMatches = ROWS.filter(r => { const s = searchString(r); return toks.every(t => s.includes(t)); });
+  const ok = allMatches.filter(isApproved).length;
+  const no = allMatches.length - ok;
+
+  if(allMatches.length===0){
+    verdict.className = 'verdict';
+  } else {
+    let cls, main, sub;
+    const eq = topEquivalent(allMatches.filter(isApproved));
+    if(no===0){
+      cls='ok';
+      main = eq ? `Convalidar por ${eq}` : 'Convalidar — precedente aprobado';
+      sub = `${ok} caso${ok!==1?'s':''} previo${ok!==1?'s':''}, todos aprobados.`;
+    } else if(ok===0){
+      cls='no';
+      main = 'Rechazar — sin precedente de aprobación';
+      sub = `${no} caso${no!==1?'s':''} previo${no!==1?'s':''}, todos rechazados.`;
+    } else {
+      cls='mix';
+      main = 'Revisar — hay precedentes en ambos sentidos';
+      sub = eq ? `Equivalente aprobado más frecuente: ${escapeHtml(eq)}`
+               : 'Revisa el detalle de cada caso más abajo.';
+    }
+    verdict.className = 'verdict show '+cls;
+    $('vMain').textContent = main;
+    $('vSub').innerHTML = sub;
+    $('vCounts').innerHTML =
+      `<span class="count-pill ok">${ok} aprobada${ok!==1?'s':''}</span>`+
+      `<span class="count-pill no">${no} rechazada${no!==1?'s':''}</span>`;
+  }
+
+  if(res.length===0){
+    content.innerHTML = `<div class="state"><div class="ico">∅</div><h3>Sin resultados</h3><p>No hay casos que coincidan con tu búsqueda y filtro. Prueba con menos palabras o quita el filtro de estado.</p></div>`;
+    return;
+  }
+
+  content.innerHTML = '<div class="results">'+res.map(r=>cardHTML(r,q)).join('')+'</div>';
+}
+
+function topEquivalent(rows){
+  const m = {};
+  rows.forEach(r=>{ const k=[val(r,'codUnab'),val(r,'asigUnab')].filter(Boolean).join(' — '); if(k) m[k]=(m[k]||0)+1; });
+  let best=null,bc=0; for(const k in m){ if(m[k]>bc){bc=m[k];best=k;} }
+  return best;
+}
+
+function cardHTML(r,q){
+  const approved = isApproved(r);
+  const badge = approved ? '<span class="badge ok">Aprobada</span>' : '<span class="badge no">Rechazada</span>';
+  const oName = val(r,'asigOrigen') || '(sin nombre)';
+  const oCode = val(r,'codOrigen');
+  const oUni  = val(r,'uniOrigen');
+  const oCarr = val(r,'carrOrigen');
+  const oNota = val(r,'notaOrigen');
+  const oPer  = val(r,'periodo');
+
+  const metaParts = [];
+  if(oUni) metaParts.push(highlight(oUni,q));
+  if(oCarr) metaParts.push(highlight(oCarr,q));
+  if(oCode) metaParts.push('Cód. '+highlight(oCode,q));
+  if(oPer) metaParts.push(oPer);
+  if(oNota) metaParts.push('Nota '+escapeHtml(oNota));
+
+  let flow = '';
+  if(val(r,'asigUnab')||val(r,'codUnab')){
+    const uCode = val(r,'codUnab');
+    const uName = val(r,'asigUnab');
+    const cred  = val(r,'creditos');
+    const lab = approved ? 'Convalida en UNAB por' : 'Se evaluó contra la asignatura UNAB';
+    flow = `<div class="flow">
+      <svg class="arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      <div class="unab">
+        <div class="lab">${lab}</div>
+        <div class="val">${uCode?`<span class="code">${escapeHtml(uCode)}</span> · `:''}${escapeHtml(uName||'')}${(approved&&cred)?` · ${escapeHtml(cred)} créd.`:''}</div>
+      </div></div>`;
+  }
+
+  const tags = [];
+  const cong = val(r,'congru');
+  if(cong) tags.push(`<span class="tag ${congClass(cong)}">Congruencia <b>${escapeHtml(cong)}</b></span>`);
+  const cont = val(r,'contacto');
+  if(cont) tags.push(`<span class="tag">Postulante <b>${escapeHtml(cont)}</b></span>`);
+  const caso = val(r,'caso');
+  if(caso) tags.push(`<span class="tag">Caso <b>${escapeHtml(caso)}</b></span>`);
+
+  const obs = val(r,'obs');
+  const obsHTML = obs ? `<div class="obs"><b>Observación:</b> ${escapeHtml(obs)}</div>` : '';
+
+  return `<div class="card">
+    <div class="card-top">
+      <div>
+        <div class="origin-name">${highlight(oName,q)}</div>
+        <div class="origin-meta">${metaParts.join(' · ')}</div>
+      </div>
+      ${badge}
+    </div>
+    ${flow}
+    ${tags.length?`<div class="meta-row">${tags.join('')}</div>`:''}
+    ${obsHTML}
+  </div>`;
+}
+
+// Events
+$('file').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  $('fileStatus').textContent = 'Leyendo…';
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      loadWorkbook(new Uint8Array(ev.target.result));
+      $('fileStatus').textContent = `${f.name} · ${ROWS.length} registros`;
+    }catch(err){
+      $('fileStatus').textContent = 'No se pudo leer el archivo';
+      $('content').innerHTML = `<div class="state"><div class="ico">⚠️</div><h3>No se pudo leer el archivo</h3><p>Asegúrate de que sea el Excel de convalidaciones (.xlsx) con la fila de encabezados en la primera fila.</p></div>`;
+    }
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+let t;
+$('q').addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(render,120); });
+$('filter').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b||b.disabled) return;
+  statusFilter = b.dataset.f;
+  document.querySelectorAll('#filter button').forEach(x=>x.classList.toggle('on', x===b));
+  render();
+});
+</script>
+</body>
+</html>
